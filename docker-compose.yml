@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: meetclone
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: meetclone_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://meetclone:password@db:5432/meetclone_db
+      - BOT_SERVICE_URL=http://bot-service:8001
+    depends_on:
+      - db
+    volumes:
+      - ./backend/app:/app/app
+
+  bot-service:
+    build: ./bot-service
+    ports:
+      - "8001:8001"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    # Required for Playwright to run correctly in Docker
+    ipc: host
+    volumes:
+      - ./bot-service/app:/app/app
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - VITE_BACKEND_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
