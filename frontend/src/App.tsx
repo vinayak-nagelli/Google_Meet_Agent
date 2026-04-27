@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -21,33 +21,42 @@ function App() {
       if (!response.ok) throw new Error('Network error');
       const data = await response.json();
       setBotId(data.id);
-      setStatusText(`Bot deployed! ID: ${data.id}, Status: ${data.status}`);
       
-      // Start polling status
-      pollStatus(data.id);
+      let initialStatus = `Bot deployed! ID: ${data.id}, Status: ${data.status}`;
+      if (data.error_message) initialStatus += ` | Error: ${data.error_message}`;
+      setStatusText(initialStatus);
+      
     } catch (error) {
       console.error(error);
       setStatusText('Error deploying bot. Is backend running?');
     }
   };
 
-  const pollStatus = async (id: number) => {
-    setInterval(async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/bot/status/${id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setStatusText(`Bot ID: ${id}, Status: ${data.status}`);
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (botId) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/bot/status/${botId}`);
+          if (res.ok) {
+            const data = await res.json();
+            let text = `Bot ID: ${botId}, Status: ${data.status}`;
+            if (data.error_message) {
+              text += ` | Error: ${data.error_message}`;
+            }
+            setStatusText(text);
+          }
+        } catch (e) {
+          console.error(e);
         }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 2000);
-  };
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [botId]);
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '1rem' }}>MeetClone MVP</h1>
+      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '1rem' }}>MeetClone MVP - Milestone 2</h1>
       <form onSubmit={deployBot} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: '#f9fafb', padding: '1.5rem', borderRadius: '8px' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Google Meet Link:</label>
@@ -76,8 +85,8 @@ function App() {
       </form>
 
       <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: 'white' }}>
-        <h3 style={{ margin: '0 0 1rem 0', fontSize: '18px' }}>Status Log</h3>
-        <p style={{ margin: 0, color: '#4b5563' }}>{statusText || 'Ready to deploy'}</p>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '18px' }}>Live Status</h3>
+        <p style={{ margin: 0, color: '#4b5563', fontWeight: 'bold' }}>{statusText || 'Ready to deploy'}</p>
       </div>
     </div>
   );
