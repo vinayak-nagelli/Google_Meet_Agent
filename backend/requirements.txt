@@ -1,3 +1,9 @@
 fastapi
 uvicorn
-python-multipart
+pydantic
+openai
+python-dotenv
+torch
+silero-vad
+soundfile
+numpy

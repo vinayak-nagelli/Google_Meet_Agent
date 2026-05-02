@@ -1,2 +1,3 @@
-2026/04/28-00:41:28.274 9d2c Creating DB C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\Sync Data\LevelDB since it was missing.
-2026/04/28-00:41:28.326 9d2c Reusing MANIFEST C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/05/01-22:55:08.557 513c Reusing MANIFEST C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/05/01-22:55:08.558 513c Recovering log #3
+2026/05/01-22:55:08.558 513c Reusing old log C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\Sync Data\LevelDB/000003.log 

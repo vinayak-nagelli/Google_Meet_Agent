@@ -1,40 +1,78 @@
-# MeetClone - Personal Meeting Agent
+# 🤖 MeetClone - Advanced AI Meeting Agent
 
-This is the MVP-1 for the Personal Meeting Agent project. 
+MeetClone is a powerful, self-hosted AI assistant that joins your Google Meet sessions to record, transcribe, translate, and summarize your meetings with professional-grade intelligence.
 
-## Project Vision
-An AI bot that joins Google Meet on behalf of the user, listens to the meeting, captures decisions/action items/deadlines, and generates a structured report after the meeting. 
-*(Note: MVP-1 focuses only on orchestrating the bot presence, not audio/transcription/AI yet).*
+---
 
-## MVP-1 Scope
-- [x] Monorepo structure setup.
-- [x] FastAPI backend with Bot Session database schemas.
-- [x] Playwright Python bot-service that launches Chromium and opens a Google Meet link.
-- [x] React + TypeScript + Tailwind frontend to deploy and track the bot.
-- [x] Docker Compose setup to run everything easily.
+## ✨ Key Features
 
-**What is NOT included yet:**
-- Speech-to-text (Whisper/Deepgram)
-- AI summarization (LLM)
-- Notion/Jira/Slack integrations
-- Mobile Application
-- Auto-responses in meeting chat
+### 🎙️ Audio Intelligence (Milestone 11)
+- **High-Fidelity Recording**: Captures meeting audio in 5-minute chunks using high-quality system loopback.
+- **Smart Preprocessing**: Automatically cleans audio using `ffmpeg` (loudness normalization + noise filtering) for perfect transcription.
+- **English Translation**: Spoken Telugu, Hindi, and other languages are automatically translated into English text via Groq Whisper.
+- **Audio Name Mentions**: Real-time alerts if your name is mentioned in spoken audio.
 
-## Prerequisites
-- Docker & Docker Compose
-- (Optional) Python 3.11+ and Node 18+ if running locally without Docker.
+### 🧠 AI Summarization (Milestone 9)
+- **Structured Reports**: Generates deep insights using Llama 3.3, including Key Points, Decisions, Action Items, and Deadlines.
+- **Participant Analysis**: Tracks who said what, how many messages they sent, and their specific contributions.
+- **Consolidated Intelligence**: Combines both spoken audio transcripts and typed chat messages into one master report.
 
-## Setup & Run via Docker (Recommended)
-1. Ensure Docker Desktop is running.
-2. In the root directory, run:
-   ```bash
-   docker-compose up --build
-   ```
-3. Open `http://localhost:5173` to access the React Dashboard.
-4. Open `http://localhost:8000/docs` to access the FastAPI Swagger UI.
+### 💬 Chat Automation (Milestone 8)
+- **Context-Aware Auto-Reply**: The bot can reply to questions autonomously using your personal instructions and persona context.
+- **Live Monitoring**: Real-time scraping of meeting chat displayed on your dashboard.
+- **Remote Outbox**: Send messages to the Google Meet chat directly from the web dashboard.
 
-## Ethical Note
-The bot is designed to be honest. It must explicitly identify itself (e.g., "Meeting Assistant") when joining calls. It should only be used in meetings where recording/transcription is acceptable and with the consent of the participants.
+### 🎨 Modern Dashboard
+- **Glassmorphism UI**: A premium, responsive React interface with live status polling.
+- **Interactive Playback**: Listen to meeting audio chunks directly in the browser.
+- **Live Alert System**: Visual notifications for name mentions and AI actions.
 
-## Known Limitations
-Google Meet UI updates frequently. The Playwright selectors for dismissing camera/mic and clicking the "Join" button may need occasional updates if Google changes their DOM structure.
+---
+
+## 🛠️ Technology Stack
+- **Frontend**: React + Vite + Vanilla CSS
+- **Backend**: FastAPI (Python)
+- **Bot Service**: Playwright + Python Soundcard/Soundfile
+- **AI Engine**: Groq API (Whisper-v3 + Llama-3.3)
+- **Processing**: FFmpeg
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- **Python 3.11+**
+- **Node.js 18+**
+- **FFmpeg** (Auto-detected on Windows if installed via `winget install Gyan.FFmpeg`)
+- **Groq API Key** (Get one at [console.groq.com](https://console.groq.com))
+
+### 2. Configuration
+Create a `.env` file in the `backend/` directory:
+```env
+GROQ_API_KEY=your_key_here
+```
+
+### 3. Installation & Run
+**Backend:**
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## ⚖️ Ethical Note
+This bot is designed for transparency. It identifies itself in meetings and should only be used where consent for recording/transcription has been established.
+
+## 📝 License
+This project is for educational and personal productivity use.

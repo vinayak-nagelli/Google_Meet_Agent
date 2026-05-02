@@ -1,2 +1,3 @@
-2026/04/28-00:41:28.723 5c98 Creating DB C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\shared_proto_db\metadata since it was missing.
-2026/04/28-00:41:28.736 5c98 Reusing MANIFEST C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\shared_proto_db\metadata/MANIFEST-000001
+2026/05/01-22:55:08.964 2f08 Reusing MANIFEST C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\shared_proto_db\metadata/MANIFEST-000001
+2026/05/01-22:55:08.965 2f08 Recovering log #3
+2026/05/01-22:55:08.966 2f08 Reusing old log C:\Users\Swapnil\Desktop\Google_Meet_Agent\bot-service\bot_profile\Default\shared_proto_db\metadata/000003.log 
