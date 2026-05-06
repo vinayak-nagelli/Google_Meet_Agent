@@ -100,18 +100,17 @@ def preprocess_audio_file(input_path: str, output_path: str) -> Dict:
     duration_before = _get_duration(input_path)
 
     # Build ffmpeg command
-    # loudnorm: EBU R128 loudness normalization (safe, doesn't distort voice)
-    # highpass=f=80: remove very low-frequency hum below 80 Hz
+    # speechnorm: Designed specifically for speech normalization
+    # highpass: remove low-frequency hum
     exe = get_ffmpeg_exe()
     ffmpeg_cmd = [
         exe,
-        "-y",                        # overwrite output
+        "-y",
         "-i", input_path,
-        "-ac", "1",                  # mono
-        "-ar", "16000",              # 16kHz sample rate
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,highpass=f=80",  # normalize + filter
-        "-sample_fmt", "s16",        # 16-bit PCM
-        "-c:a", "pcm_s16le",         # WAV PCM codec
+        "-ac", "1",
+        "-ar", "16000",
+        "-af", "highpass=f=80,speechnorm=e=4:p=0.4",
+        "-c:a", "pcm_s16le", # Explicitly set codec for WAV
         output_path
     ]
 
@@ -192,10 +191,26 @@ def preprocess_bot_recordings(bot_id: int) -> Dict:
         and "clean" not in f  # skip already-cleaned files
     ])
 
-    if not all_wavs:
+    import time
+    now = time.time()
+    valid_wavs = []
+    skipped_active = []
+
+    for f in all_wavs:
+        path = os.path.join(RECORDINGS_DIR, f)
+        # If file was modified in the last 10 seconds, it's likely still being written to by the bot
+        if now - os.path.getmtime(path) < 10:
+            skipped_active.append(f)
+            continue
+        valid_wavs.append(f)
+
+    if not valid_wavs:
+        msg = f"No complete recordings found for bot {bot_id}."
+        if skipped_active:
+            msg += f" (Waiting for active recording {skipped_active[0]} to finish)."
         return {
             "status": "preprocessing_failed",
-            "error": f"No recordings found for bot {bot_id}.",
+            "error": msg,
             "original_files": [],
             "cleaned_files": [],
             "logs": [],
@@ -205,7 +220,7 @@ def preprocess_bot_recordings(bot_id: int) -> Dict:
     cleaned_files = []
     original_files = []
 
-    for wav_file in all_wavs:
+    for wav_file in valid_wavs:
         input_path = os.path.join(RECORDINGS_DIR, wav_file)
         # Output: cleaned/{bot_id}_{timestamp}_part1_clean.wav
         base = wav_file.replace(".wav", "")

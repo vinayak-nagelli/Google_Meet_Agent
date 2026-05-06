@@ -10,13 +10,27 @@ import time
 import soundcard as sc
 import soundfile as sf
 import numpy as np
+from PIL import Image
+import io
+
+def compute_image_difference(bytesA: bytes, bytesB: bytes) -> float:
+    try:
+        imgA = Image.open(io.BytesIO(bytesA)).convert('L').resize((64, 64))
+        imgB = Image.open(io.BytesIO(bytesB)).convert('L').resize((64, 64))
+        arrA = np.array(imgA, dtype=float)
+        arrB = np.array(imgB, dtype=float)
+        mse = np.mean((arrA - arrB) ** 2)
+        return mse
+    except Exception as e:
+        print(f"ERROR: Image diff failed: {e}", flush=True)
+        return 99999
 
 class AudioRecorder:
     def __init__(self, bot_id: str):
         self.bot_id = bot_id
         self.is_recording = False
         self.thread = None
-        self.chunk_seconds = 300 # 5 minutes per chunk
+        self.chunk_seconds = 30 # 30 seconds per chunk for live updates
 
     def start(self):
         self.is_recording = True
@@ -269,6 +283,12 @@ async def main(meet_link: str, bot_name: str, bot_id: str, backend_url: str):
                 "pin it",
             ]
 
+            # ── Presentation Tracking Setup ──────────
+            last_presentation_state = False
+            last_screenshot_bytes = None
+            last_screenshot_time = 0
+            screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "recordings", "screenshots", bot_id))
+
             # ── Combined chat monitoring + outbound message loop ──────────
             # Increased loop duration to handle longer meetings (e.g. 60 mins)
             # Will automatically break if user clicks "End Meeting" in UI
@@ -307,6 +327,47 @@ async def main(meet_link: str, bot_name: str, bot_id: str, backend_url: str):
 
                 # 3. Check for outbound messages queued by user
                 await send_pending_messages(page, bot_id, backend_url)
+
+                # 4. Check for Presentation and Screenshot
+                try:
+                    is_presenting = False
+                    # Look for elements that suggest presenting
+                    presentation_els = await page.query_selector_all('[aria-label*="presentation" i], [aria-label*="presenting" i]')
+                    text_el = await page.query_selector("text=/is presenting/i")
+                    if len(presentation_els) > 0 or text_el:
+                        is_presenting = True
+
+                    if is_presenting != last_presentation_state:
+                        status_str = "presentation_started" if is_presenting else "presentation_ended"
+                        print(f"STATUS: {status_str}", flush=True)
+                        last_presentation_state = is_presenting
+
+                    if is_presenting:
+                        current_time = time.time()
+                        # Capture at most once every 15 seconds
+                        if current_time - last_screenshot_time > 15:
+                            screenshot_bytes = await page.screenshot(type="jpeg", quality=60)
+                            
+                            diff_score = 99999
+                            if last_screenshot_bytes:
+                                diff_score = compute_image_difference(screenshot_bytes, last_screenshot_bytes)
+                            
+                            # Threshold for significant slide/content change
+                            if diff_score > 300:
+                                os.makedirs(screenshots_dir, exist_ok=True)
+                                timestamp = int(current_time)
+                                filename = f"{bot_id}_slide_{timestamp}.jpg"
+                                filepath = os.path.join(screenshots_dir, filename)
+                                with open(filepath, "wb") as f:
+                                    f.write(screenshot_bytes)
+                                
+                                print(f"VISUAL: captured_slide|{filename}|{diff_score:.2f}", flush=True)
+                            
+                            # Update state so we don't spam screenshots
+                            last_screenshot_bytes = screenshot_bytes
+                            last_screenshot_time = current_time
+                except Exception as e:
+                    pass
 
                 await asyncio.sleep(3)
 

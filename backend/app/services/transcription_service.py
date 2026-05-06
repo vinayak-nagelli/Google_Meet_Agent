@@ -52,7 +52,10 @@ def transcribe_audio_file(file_path: str) -> List[Dict]:
             "Ensure audio is recorded at 16kHz Mono (the bot now does this automatically)."
         )
 
-    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+    import httpx
+    # Using verify=False to bypass SSL: CERTIFICATE_VERIFY_FAILED which often happens in local Windows environments
+    http_client = httpx.Client(verify=False)
+    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", http_client=http_client)
 
     print(f"  [Transcription] Sending {os.path.basename(file_path)} ({file_size_mb:.2f} MB) to Groq...")
 

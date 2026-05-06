@@ -1,3 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * { font-family: 'Inter', sans-serif; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-slate-50 text-slate-800; }
+}
+
+@layer utilities {
+  .card { @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-6; }
+  .card-hover { @apply hover:shadow-md hover:-translate-y-0.5 transition-all duration-200; }
+  .btn-primary { @apply bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md active:scale-95; }
+  .btn-secondary { @apply bg-white hover:bg-slate-50 text-slate-700 font-semibold px-6 py-2.5 rounded-xl border border-slate-200 transition-all duration-200 hover:shadow-sm active:scale-95; }
+  .btn-danger { @apply bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm; }
+  .input-field { @apply w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-150 text-sm; }
+  .label { @apply block text-sm font-semibold text-slate-700 mb-1.5; }
+  .badge-green { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-blue { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200; }
+  .badge-amber { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200; }
+  .badge-red { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200; }
+  .badge-purple { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200; }
+  .section-title { @apply text-xs font-bold tracking-widest text-indigo-500 uppercase mb-1; }
+  .tab-btn { @apply px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 whitespace-nowrap; }
+  .tab-active { @apply bg-indigo-600 text-white shadow-sm; }
+  .tab-inactive { @apply text-slate-500 hover:text-slate-800 hover:bg-slate-100; }
+}
+
+/* Sidebar */
+.sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer; }
+.sidebar-link-active { @apply bg-indigo-600 text-white shadow-sm; }
+.sidebar-link-inactive { @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+@keyframes flow-line {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in-up { animation: fadeInUp 0.5s ease both; }
+.animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* Chat bubble */
+.chat-bubble { @apply px-4 py-2.5 rounded-2xl text-sm max-w-xs break-words; }
+.chat-bubble-other { @apply bg-slate-100 text-slate-800 rounded-tl-sm; }
+
+/* Status dot */
+.status-dot-green { @apply w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot; }
+.status-dot-amber { @apply w-2 h-2 rounded-full bg-amber-500 animate-pulse-dot; }
+.status-dot-red { @apply w-2 h-2 rounded-full bg-red-500; }
+.status-dot-gray { @apply w-2 h-2 rounded-full bg-slate-300; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }

@@ -40,6 +40,8 @@ auto_replied_msgs: Dict[int, set] = {}
 bot_summaries: Dict[int, Any] = {}  # Milestone 9: AI summaries
 bot_transcripts: Dict[int, List[Dict]] = {} # Milestone 11: Audio Transcripts
 bot_preprocess: Dict[int, Any] = {}  # Milestone 10.5: Preprocessing state
+bot_visual_status: Dict[int, Any] = {} # Milestone 12: Visual events & Screenshots
+bot_visual_artifacts: Dict[int, Any] = {} # Milestone 14: Groq Vision
 session_counter = 1
 
 
@@ -205,6 +207,33 @@ def run_bot_process(bot_id: int, meet_link: str, bot_name: str):
             text=True,
             bufsize=1
         )
+        bot_sessions[bot_id]["_process"] = process
+
+        def _run_transcription_task(f_path):
+            from app.services.transcription_service import transcribe_audio_file, format_timestamp
+            bot_sessions[bot_id]["transcribing"] = True
+            try:
+                segments = transcribe_audio_file(f_path)
+                if segments:
+                    bot_transcripts.setdefault(bot_id, []).extend(segments)
+                    
+                    user_name = bot_sessions[bot_id].get("user_name", "").strip().lower()
+                    if user_name:
+                        for seg in segments:
+                            if user_name in seg["text"].lower():
+                                alert = {
+                                    "bot_id": bot_id,
+                                    "type": "name_mention_audio",
+                                    "message": f"Your name was spoken in the meeting!",
+                                    "original_message": f"{format_timestamp(seg['start'])}: {seg['text']}",
+                                    "sender": "Audio Transcript",
+                                    "timestamp": datetime.now().strftime("%H:%M:%S")
+                                }
+                                bot_alerts.setdefault(bot_id, []).append(alert)
+            except Exception as e:
+                print(f"[Bot {bot_id}] Transcription error: {e}")
+            finally:
+                bot_sessions[bot_id]["transcribing"] = False
 
         for line in iter(process.stdout.readline, ''):
             line = line.strip()
@@ -225,37 +254,35 @@ def run_bot_process(bot_id: int, meet_link: str, bot_name: str):
                     # Milestone 11: Process audio file for transcript
                     # We will spin a thread to handle this quickly without blocking stdout reading
                     import threading
-                    def run_transcription(f_path):
-                        from app.services.transcription_service import transcribe_audio_file, format_timestamp
-                        bot_sessions[bot_id]["transcribing"] = True
-                        segments = transcribe_audio_file(f_path)
-                        bot_transcripts.setdefault(bot_id, []).extend(segments)
-                        
-                        # Generate Name Alerts from Transcript
-                        user_name = bot_sessions[bot_id].get("user_name", "").strip().lower()
-                        if user_name:
-                            for seg in segments:
-                                if user_name in seg["text"].lower():
-                                    alert = {
-                                        "bot_id": bot_id,
-                                        "type": "name_mention_audio",
-                                        "message": f"Your name was spoken in the meeting!",
-                                        "original_message": f"{format_timestamp(seg['start'])}: {seg['text']}",
-                                        "sender": "Audio Transcript",
-                                        "timestamp": datetime.now().strftime("%H:%M:%S")
-                                    }
-                                    bot_alerts.setdefault(bot_id, []).append(alert)
-                        
-                        bot_sessions[bot_id]["transcribing"] = False
-                    
-                    threading.Thread(target=run_transcription, args=(filename,)).start()
+                    threading.Thread(target=_run_transcription_task, args=(filename,)).start()
 
                 elif status_str.startswith("recording_failed|"):
                     bot_sessions[bot_id]["recording_error"] = status_str.split("|")[1]
+                elif status_str == "presentation_started":
+                    bot_visual_status.setdefault(bot_id, {"presentation_active": False, "screenshots": []})
+                    bot_visual_status[bot_id]["presentation_active"] = True
+                elif status_str == "presentation_ended":
+                    bot_visual_status.setdefault(bot_id, {"presentation_active": False, "screenshots": []})
+                    bot_visual_status[bot_id]["presentation_active"] = False
                 elif status_str in ["recording_started", "recording_stopped"]:
                     pass # Handled for UI if needed, but not strictly required
                 else:
                     bot_sessions[bot_id]["status"] = status_str
+
+            elif line.startswith("VISUAL:"):
+                # VISUAL: captured_slide|filename|diff_score
+                parts = line.replace("VISUAL:", "").strip().split("|")
+                if len(parts) >= 3 and parts[0].strip() == "captured_slide":
+                    filename = parts[1].strip()
+                    diff_score = parts[2].strip()
+                    bot_visual_status.setdefault(bot_id, {"presentation_active": False, "screenshots": []})
+                    bot_visual_status[bot_id]["screenshots"].append({
+                        "file_path": f"/recordings/screenshots/{bot_id}/{filename}",
+                        "filename": filename,
+                        "captured_at": datetime.now().strftime("%H:%M:%S"),
+                        "change_score": diff_score
+                    })
+
 
             elif line.startswith("ERROR:"):
                 bot_sessions[bot_id]["error_message"] = line.split("ERROR:")[1].strip()
@@ -290,9 +317,56 @@ def run_bot_process(bot_id: int, meet_link: str, bot_name: str):
                         check_auto_reply(bot_id, sender, message)
 
         process.wait()
+        bot_sessions[bot_id]["is_recording"] = False
+        bot_sessions[bot_id]["transcribing"] = False
+        bot_sessions[bot_id]["_process"] = None
+        
+        # Scan for orphaned audio chunks that were written to disk but not reported due to hard kill
+        import glob
+        pattern = os.path.join(RECORDINGS_DIR, f"{bot_id}_*.wav")
+        found_files = glob.glob(pattern)
+        known_chunks = bot_sessions[bot_id].get("recording_chunks", [])
+        
+        for f in found_files:
+            if f not in known_chunks:
+                print(f"[Bot {bot_id}] Found orphaned chunk: {f}")
+                bot_sessions[bot_id].setdefault("recording_chunks", []).append(f)
+                _run_transcription_task(f) # Run synchronously so we have it before saving memory
+
         if process.returncode != 0 and bot_sessions[bot_id]["status"] not in ["failed", "stopped"]:
             bot_sessions[bot_id]["status"] = "failed"
             bot_sessions[bot_id].setdefault("error_message", f"Process crashed with code {process.returncode}")
+
+        # Milestone 15: Auto-save meeting memory when bot process finishes
+        try:
+            from app.services.meeting_memory_service import save_meeting
+            from app.services.transcription_service import format_timestamp
+
+            session_data = bot_sessions.get(bot_id, {})
+            summary_data = bot_summaries.get(bot_id, {})
+            chats = bot_chats.get(bot_id, [])
+            visual_artifacts = bot_visual_artifacts.get(bot_id, {})
+
+            raw_segments = bot_transcripts.get(bot_id, [])
+            formatted_transcript = [
+                {"start": format_timestamp(s["start"]), "end": format_timestamp(s["end"]), "text": s["text"]}
+                for s in raw_segments
+            ]
+
+            save_meeting(bot_id, {
+                "meet_link": session_data.get("meet_link", ""),
+                "bot_name": session_data.get("bot_name", "Agent"),
+                "created_at": session_data.get("created_at", ""),
+                "ended_at": datetime.now().isoformat(),
+                "chat_messages": chats,
+                "transcript": formatted_transcript,
+                "summary": summary_data,
+                "screenshot_metadata": bot_visual_status.get(bot_id, {}).get("screenshots", []),
+                "visual_content": visual_artifacts,
+            })
+            print(f"[Bot {bot_id}] Meeting memory saved.")
+        except Exception as e:
+            print(f"[Bot {bot_id}] Warning: Failed to save meeting memory: {e}")
 
     except Exception as e:
         bot_sessions[bot_id]["status"] = "failed"
@@ -327,6 +401,7 @@ def deploy_bot(bot_data: BotSessionCreate, background_tasks: BackgroundTasks):
     bot_alerts[bot_id] = []
     bot_outbox[bot_id] = []
     auto_replied_msgs[bot_id] = set()
+    bot_visual_status[bot_id] = {"presentation_active": False, "screenshots": []}
 
     if not bot_data.meet_link.startswith("http"):
         bot_sessions[bot_id]["status"] = "failed"
@@ -334,7 +409,7 @@ def deploy_bot(bot_data: BotSessionCreate, background_tasks: BackgroundTasks):
         return bot_sessions[bot_id]
 
     background_tasks.add_task(run_bot_process, bot_id, bot_data.meet_link, bot_data.bot_name)
-    return {k: v for k, v in bot_sessions[bot_id].items() if k != "auto_rule"}  # Don't expose internal rule object
+    return {k: v for k, v in bot_sessions[bot_id].items() if k not in ("auto_rule", "_process")}  # Don't expose internal objects
 
 
 @app.get("/bot/status/{bot_id}")
@@ -343,6 +418,7 @@ def get_bot_status(bot_id: int):
         raise HTTPException(status_code=404, detail="Bot session not found")
     s = dict(bot_sessions[bot_id])
     s.pop("auto_rule", None)
+    s.pop("_process", None)
     return s
 
 
@@ -393,12 +469,13 @@ def generate_summary_endpoint(bot_id: int):
         raise HTTPException(status_code=404, detail="Bot session not found")
 
     messages = bot_chats.get(bot_id, [])
-    if not messages:
-        return {"error": "No captured chat messages available for summary."}
+    transcript_segments = bot_transcripts.get(bot_id, [])
+    
+    if not messages and not transcript_segments:
+        return {"error": "No captured chat messages or audio transcripts available for summary."}
 
     try:
         from app.services.summary_service import generate_summary
-        transcript_segments = bot_transcripts.get(bot_id, [])
         summary = generate_summary(messages, transcript_segments)
         bot_summaries[bot_id] = summary
         return summary
@@ -416,6 +493,7 @@ def get_summary(bot_id: int):
     return bot_summaries[bot_id]
 
 
+@app.get("/bot/{bot_id}/audio-files")
 @app.get("/bot/{bot_id}/recording")
 def get_recording(bot_id: int):
     """Return recording chunks for the bot session."""
@@ -425,9 +503,16 @@ def get_recording(bot_id: int):
     chunks = bot_sessions[bot_id].get("recording_chunks", [])
     error = bot_sessions[bot_id].get("recording_error")
     
+    # Get cleaned chunks if they exist
+    cleaned_dir = os.path.join(RECORDINGS_DIR, "cleaned")
+    cleaned_chunks = []
+    if os.path.exists(cleaned_dir):
+        cleaned_chunks = [f for f in os.listdir(cleaned_dir) if f.endswith("_clean.wav")]
+
     # We return the basenames; the frontend will request them via the /recordings/ static mount
     return {
         "chunks": [os.path.basename(c) for c in chunks],
+        "cleaned_chunks": cleaned_chunks,
         "error": error
     }
 
@@ -452,6 +537,7 @@ def get_transcript(bot_id: int):
     return {
         "status": bot_sessions[bot_id].get("transcription_status", "not_started"),
         "preprocessing_status": preprocess_state["status"],
+        "segments": formatted, # Align with frontend's 'segments' property
         "transcript": formatted
     }
 
@@ -511,8 +597,9 @@ def transcribe_audio_unified(bot_id: int, background_tasks: BackgroundTasks):
     return {"status": "started", "message": "Preprocessing and transcription started."}
 
 
+@app.post("/bot/{bot_id}/stop")
 @app.post("/bot/{bot_id}/end")
-def end_bot(bot_id: int):
+def stop_bot(bot_id: int):
     """End the bot session gracefully (stops recording and leaves meeting)."""
     if bot_id not in bot_sessions:
         raise HTTPException(status_code=404, detail="Bot session not found")
@@ -520,19 +607,21 @@ def end_bot(bot_id: int):
     if bot_sessions[bot_id]["status"] in ["failed", "stopped"]:
         return {"status": "already_stopped"}
 
-    # We signal the bot by setting its status locally. The bot reads stdout, but wait!
-    # The bot doesn't poll the backend for status. We need to kill its process.
-    # For now, we don't have the process handle stored globally. 
-    # But since Milestone 10 asks for 'POST /bot/{bot_id}/end', we can store the process
-    # or just mark it stopped.
-    # Actually, the simplest way is to kill it if we store it.
+    process = bot_sessions[bot_id].get("_process")
+    if process:
+        try:
+            # Try graceful termination first (CTRL+C signal would be better but hard to send to subprocess)
+            process.terminate()
+            bot_sessions[bot_id]["status"] = "stopped"
+            bot_sessions[bot_id]["is_recording"] = False
+            bot_sessions[bot_id]["transcribing"] = False
+            return {"status": "stopping"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
     
-    # Simple workaround for now: just return success, true clean termination requires process handle.
-    # To properly terminate, let's mark it 'stopping'.
     bot_sessions[bot_id]["status"] = "stopped"
-    
-    # Note: Real process termination would go here if `process` was saved globally
-    return {"status": "stopping"}
+    bot_sessions[bot_id]["is_recording"] = False
+    return {"status": "stopped"}
 
 
 @app.post("/bot/{bot_id}/preprocess-audio")
@@ -586,6 +675,188 @@ def get_audio_processing_status(bot_id: int):
     }
 
 
+@app.get("/bot/{bot_id}/visual-status")
+def get_visual_status(bot_id: int):
+    """Milestone 12: Return presentation and screenshot status."""
+    if bot_id not in bot_sessions:
+        raise HTTPException(status_code=404, detail="Bot session not found")
+        
+    visual = bot_visual_status.get(bot_id, {"presentation_active": False, "screenshots": []})
+    screenshots = visual.get("screenshots", [])
+    
+    return {
+        "bot_id": bot_id,
+        "presentation_active": visual.get("presentation_active", False),
+        "screenshot_count": len(screenshots),
+        "latest_screenshot": screenshots[-1]["captured_at"] if screenshots else None
+    }
+
+
+@app.get("/bot/{bot_id}/screenshots")
+def get_screenshots(bot_id: int):
+    """Milestone 12: Return all captured screenshots."""
+    if bot_id not in bot_sessions:
+        raise HTTPException(status_code=404, detail="Bot session not found")
+        
+    visual = bot_visual_status.get(bot_id, {"presentation_active": False, "screenshots": []})
+    return {
+        "bot_id": bot_id,
+        "presentation_active": visual.get("presentation_active", False),
+        "screenshots": visual.get("screenshots", [])
+    }
+
+
+# ── Milestone 14: Groq Vision Extraction ──────────────────────────────────────
+
+@app.post("/bot/{bot_id}/process-visual-content")
+async def process_visual_content(bot_id: int):
+    """Run Groq Vision on key screenshots."""
+    if bot_id not in bot_sessions:
+        raise HTTPException(status_code=404, detail="Bot session not found")
+        
+    visual = bot_visual_status.get(bot_id, {"presentation_active": False, "screenshots": []})
+    screenshots = visual.get("screenshots", [])
+    
+    if not screenshots:
+        raise HTTPException(status_code=400, detail="No screenshots available to process")
+        
+    # Set status to processing
+    bot_visual_artifacts.setdefault(bot_id, {"status": "processing"})
+    bot_visual_artifacts[bot_id]["status"] = "processing"
+    
+    # Run processing asynchronously to not block API
+    import threading
+    def run_vision():
+        try:
+            from app.services.vision_service import process_vision_screenshots
+            result = process_vision_screenshots(bot_id, screenshots)
+            bot_visual_artifacts[bot_id] = result
+        except Exception as e:
+            bot_visual_artifacts[bot_id] = {"status": "failed", "error": str(e)}
+            
+    threading.Thread(target=run_vision).start()
+    return {"status": "processing started", "message": f"Processing screenshots via Groq Vision"}
+
+
+@app.get("/bot/{bot_id}/visual-content")
+def get_visual_content(bot_id: int):
+    """Return the Groq Vision results."""
+    if bot_id not in bot_sessions:
+        raise HTTPException(status_code=404, detail="Bot session not found")
+        
+    artifacts_data = bot_visual_artifacts.get(bot_id, {"status": "not_started", "processed_count": 0, "screenshots": []})
+    return {
+        "bot_id": bot_id,
+        "status": artifacts_data.get("status", "not_started"),
+        "error": artifacts_data.get("error"),
+        "processed_count": artifacts_data.get("processed_count", 0),
+        "skipped_count": artifacts_data.get("skipped_count", 0),
+        "screenshots": artifacts_data.get("screenshots", [])
+    }
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+# ── Milestone 15: Meeting Memory & Search ─────────────────────────────────
+
+class MeetingSearchQuery(BaseModel):
+    query: str = ""
+    date_filter: Optional[str] = None          # YYYY-MM-DD
+    participant_filter: Optional[str] = None
+    has_deadline: Optional[bool] = None
+    has_action_items: Optional[bool] = None
+
+
+@app.post("/meetings/search")
+def search_meetings_endpoint(body: MeetingSearchQuery):
+    """Search all stored meeting memories."""
+    from app.services.meeting_memory_service import search_meetings
+    results = search_meetings(
+        query=body.query,
+        date_filter=body.date_filter,
+        participant_filter=body.participant_filter,
+        has_deadline=body.has_deadline,
+        has_action_items=body.has_action_items,
+    )
+    return {"query": body.query, "count": len(results), "results": results}
+
+
+@app.get("/meetings/list")
+def list_all_meetings():
+    """Return metadata for all stored meetings, newest first."""
+    from app.services.meeting_memory_service import load_all_meetings
+    meetings = load_all_meetings()
+    return {"count": len(meetings), "meetings": [
+        {
+            "bot_id": m.get("bot_id"),
+            "meet_link": m.get("meet_link", ""),
+            "bot_name": m.get("bot_name", "Agent"),
+            "saved_at": m.get("saved_at", ""),
+            "summary_short": (m.get("summary", {}) or {}).get("meeting_summary", "")[:200],
+            "action_items": (m.get("summary", {}) or {}).get("action_items", []),
+            "deadlines": (m.get("summary", {}) or {}).get("deadlines", []),
+        }
+        for m in meetings
+    ]}
+
+
+@app.get("/meetings/{bot_id}")
+def get_meeting_detail(bot_id: int):
+    """Return full stored meeting data for a given bot_id."""
+    from app.services.meeting_memory_service import load_meeting
+    meeting = load_meeting(bot_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found in memory")
+    return meeting
+
+
+@app.post("/bot/{bot_id}/save-memory")
+def manual_save_memory(bot_id: int):
+    """Manually trigger meeting memory save for active sessions."""
+    if bot_id not in bot_sessions:
+        raise HTTPException(status_code=404, detail="Bot session not found")
+    try:
+        from app.services.meeting_memory_service import save_meeting
+        from app.services.transcription_service import format_timestamp
+        session_data = bot_sessions.get(bot_id, {})
+        chats = bot_chats.get(bot_id, [])
+        visual_artifacts = bot_visual_artifacts.get(bot_id, {})
+        raw_segments = bot_transcripts.get(bot_id, [])
+        
+        formatted_transcript = [
+            {"start": format_timestamp(s["start"]), "end": format_timestamp(s["end"]), "text": s["text"]}
+            for s in raw_segments
+        ]
+        
+        # Auto-generate summary if not already present but we have data
+        summary_data = bot_summaries.get(bot_id, {})
+        if not summary_data and (chats or raw_segments):
+            try:
+                from app.services.summary_service import generate_summary
+                summary_data = generate_summary(chats, raw_segments)
+                bot_summaries[bot_id] = summary_data
+            except Exception as se:
+                print(f"[Bot {bot_id}] Auto-summary failed: {se}")
+        
+        audio_chunks = [os.path.basename(c) for c in session_data.get("recording_chunks", [])]
+        
+        save_meeting(bot_id, {
+            "meet_link": session_data.get("meet_link", ""),
+            "bot_name": session_data.get("bot_name", "Agent"),
+            "meeting_title": session_data.get("meeting_title", ""),
+            "created_at": session_data.get("created_at", ""),
+            "ended_at": datetime.now().isoformat(),
+            "chat_messages": chats,
+            "transcript": formatted_transcript,
+            "summary": summary_data,
+            "audio_chunks": audio_chunks,
+            "screenshot_metadata": bot_visual_status.get(bot_id, {}).get("screenshots", []),
+            "visual_content": visual_artifacts,
+        })
+        return {"status": "saved", "bot_id": bot_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Save failed: {e}")
+

@@ -1,5 +1,6 @@
 # Environment variables
 .env
+*.env
 
 # Python
 __pycache__/
@@ -13,9 +14,17 @@ ENV/
 .venv
 
 # Audio Recordings (IMPORTANT: Don't push large audio files to GitHub)
-bot-service/recordings/*.wav
-bot-service/recordings/cleaned/*.wav
-recordings/
+bot-service/recordings/
+backend/recordings/
+
+# Bot browser profile (Chrome cache — very large, machine-specific)
+bot-service/bot_profile/
+
+# Meeting memory data (contains personal meeting data)
+meeting_memory/
+
+# Screenshots
+bot-service/screenshots/
 
 # Node/Frontend
 node_modules/
@@ -36,3 +45,11 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Test/scratch files
+test_*.py
+test_out.txt
+*.log
+
+# Backend user profiles
+backend/user_profiles/

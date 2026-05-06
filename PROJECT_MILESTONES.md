@@ -87,10 +87,28 @@ graph TD
     *   **Audio Name Alerts:** The system scans the generated transcript for the user's defined name and triggers a real-time dashboard alert if they were mentioned in speech.
     *   **Summary Integration:** The AI Meeting Summary now consumes both typed chat history AND spoken audio transcripts to produce a 100% complete meeting report.
 
+## Milestone 12: Visual Presentation Capture
+**Goal:** Add the first layer of visual meeting understanding by detecting screen sharing and capturing slides.
+*   **Action:** Integrated image-difference logic and Playwright DOM parsing.
+*   **Implementation:** 
+    *   **Presentation Detection:** Continuously scans the DOM for indicators that someone is presenting (`aria-label` changes, text markers).
+    *   **Smart Throttling:** Takes a headless screenshot at most once every 15 seconds.
+    *   **Deduplication:** Uses `Pillow` and `numpy` to calculate the Mean Squared Error (MSE) against the previous slide. Screenshots are only saved if a meaningful visual change occurred (e.g. text scrolled or a new slide appeared).
+    *   **Visual Dashboard:** Real-time UI section to browse the captured high-quality slides.
+
+## Milestone 14: Groq Vision-based Screenshot Extraction
+**Goal:** Replace low-quality Tesseract OCR text extraction with state-of-the-art Groq Vision capabilities for robust presentation understanding.
+*   **Action:** Replaced `ocr_service.py` with `vision_service.py` integrating the Groq Cloud API.
+*   **Implementation:** 
+    *   **Vision Model:** Configured to use `llama-3.2-11b-vision-preview` to process captured screen slides.
+    *   **Usage Control:** Prioritizes top 15 screenshots sorted by visual change score to avoid excessive API requests. Extraction only runs when manually triggered by the user in the UI.
+    *   **Extraction Schema:** Prompt engineered the Llama vision model to output strict JSON schemas mapping out `slide_title`, `bullet_points`, `visible_dates`, `urls`, `file_names`, `ticket_ids`, and `code_or_errors`.
+    *   **Dashboard Visuals:** The UI now displays a clean grid of screenshots along with accurately mapped bullet points and identified artifacts, bypassing classic OCR hallucination issues.
+
 ---
 
 ### Current Status
-The project is currently at **Milestone 11**. It is a fully functional AI Meeting Agent capable of joining meetings, chatting, replying, recording, cleaning audio, transcribing speech, and generating comprehensive intelligence reports.
+The project is currently at **Milestone 14**. It is a highly advanced AI Meeting Agent capable of joining meetings, chatting, replying, recording, cleaning audio, transcribing speech, capturing presentation slides, and using VLM (Vision-Language Models) to extract perfect structural data from slides.
 
 ---
 
