@@ -53,3 +53,6 @@ test_out.txt
 
 # Backend user profiles
 backend/user_profiles/
+
+# Internal agent scratch files
+scratch/

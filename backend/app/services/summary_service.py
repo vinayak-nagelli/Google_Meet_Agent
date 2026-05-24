@@ -18,10 +18,12 @@ def format_messages_for_prompt(messages: List[Dict]) -> str:
         sender = msg.get("sender", "Unknown")
         text = msg.get("message", "")
         ts = msg.get("timestamp", "")
+        # Skip bot's own messages in the summary
         if sender in ("You via Bot", "Bot (Auto-reply)"):
             continue
         lines.append(f"[{ts}] {sender}: {text}")
     return "\n".join(lines) if lines else ""
+
 
 # ── LLM Auto-Reply ────────────────────────────────────────────────────────────
 
@@ -99,120 +101,7 @@ def check_auto_reply_with_llm(instruction: str, sender: str, message: str, user_
         return None
 
 
-
 # ── Meeting Summary ───────────────────────────────────────────────────────────
-
-SUMMARY_PROMPT = """You are an AI meeting analyst. Analyze the following Google Meet chat messages and return ONLY a valid JSON object — no markdown, no explanation, no code blocks.
-
-Chat messages:
-{chat_text}
-
-Return this exact JSON structure:
-{{
-  "meeting_summary": "2-3 sentence overall summary of the meeting discussion",
-  "participant_summaries": [
-    {{
-      "participant": "Name",
-      "message_count": 0,
-      "main_points": ["point 1", "point 2"],
-      "questions_asked": ["question 1"],
-      "decisions_contributed": ["decision 1"],
-      "action_items": ["action item 1"],
-      "deadlines_mentioned": ["deadline 1"]
-    }}
-  ],
-  "key_points": ["key point 1", "key point 2"],
-  "decisions": ["decision 1"],
-  "action_items": ["action item 1"],
-  "deadlines": ["deadline 1"],
-  "unanswered_questions": ["unanswered question 1"],
-  "important_messages": [
-    {{
-      "sender": "Name",
-      "message": "the message",
-      "reason": "why it is important"
-    }}
-  ],
-  "limitations": ["Summary is based only on chat messages captured after bot joined. Previous messages may not be available."]
-}}
-
-Rules:
-- Use ONLY the provided chat messages. Do NOT hallucinate.
-- If a field has no data, use an empty list [] or write "Not available in captured chat."
-- Participant summaries must be grouped by sender name.
-- Extract action items only if clearly mentioned.
-- Extract deadlines only if clearly mentioned.
-- Unanswered questions are questions that were not answered in the chat.
-- Return ONLY the JSON object. No other text."""
-
-
-def generate_summary(messages: List[Dict]) -> Dict:
-    chat_text = format_messages_for_prompt(messages)
-
-    if not chat_text.strip():
-        return {
-            "error": "No captured chat messages available for summary.",
-            "meeting_summary": "No chat messages were captured by the bot.",
-            "participant_summaries": [],
-            "key_points": [],
-            "decisions": [],
-            "action_items": [],
-            "deadlines": [],
-            "unanswered_questions": [],
-            "important_messages": [],
-            "limitations": ["No chat messages were captured after the bot joined."]
-        }
-
-    client = get_groq_client()
-    prompt = SUMMARY_PROMPT.format(chat_text=chat_text)
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": "You are an AI meeting analyst. Always respond with valid JSON only."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2,
-        max_tokens=4096
-    )
-
-    raw = response.choices[0].message.content.strip()
-
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {
-            "error": "Groq returned invalid JSON. Raw response below.",
-            "raw_response": raw,
-            "meeting_summary": "Could not parse AI response.",
-            "participant_summaries": [],
-            "key_points": [],
-            "decisions": [],
-            "action_items": [],
-            "deadlines": [],
-            "unanswered_questions": [],
-            "important_messages": [],
-            "limitations": ["JSON parsing failed. See raw_response for debugging."]
-        }
-
-
-def format_messages_for_prompt(messages: List[Dict]) -> str:
-    lines = []
-    for msg in messages:
-        sender = msg.get("sender", "Unknown")
-        text = msg.get("message", "")
-        ts = msg.get("timestamp", "")
-        # Skip bot's own messages in the summary
-        if sender in ("You via Bot", "Bot (Auto-reply)"):
-            continue
-        lines.append(f"[{ts}] {sender}: {text}")
-    return "\n".join(lines) if lines else ""
 
 SUMMARY_PROMPT = """You are an AI meeting analyst. Analyze the following Google Meet chat messages AND spoken audio transcript. Return ONLY a valid JSON object — no markdown, no explanation, no code blocks.
 

@@ -20,22 +20,44 @@ def _meeting_path(bot_id: int) -> str:
     return os.path.join(MEMORY_DIR, f"{bot_id}.json")
 
 
+def _is_nonempty(value: Any) -> bool:
+    """Return True if value contains meaningful data (not empty string/list/dict/None)."""
+    if value is None:
+        return False
+    if isinstance(value, (str, list, dict)):
+        return bool(value)
+    return True
+
+
 def save_meeting(bot_id: int, data: Dict[str, Any]) -> bool:
-    """Persist meeting data to disk. Merges with existing data if file already exists."""
+    """Persist meeting data to disk. Smart-merges with existing data:
+    existing good data is NEVER overwritten by new empty values.
+    This prevents server-restart saves from wiping real session data."""
     try:
         path = _meeting_path(bot_id)
         existing = {}
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 existing = json.load(f)
-        
-        existing.update(data)
+
+        # Smart merge: only overwrite a field if the new value is non-empty
+        # OR if the field doesn't exist yet in the existing record.
+        for key, new_val in data.items():
+            if key not in existing:
+                # New field — always write it
+                existing[key] = new_val
+            elif _is_nonempty(new_val):
+                # Existing field — only overwrite if new value has real content
+                existing[key] = new_val
+            # else: keep the existing good value, skip empty new value
+
         existing["bot_id"] = bot_id
         existing.setdefault("saved_at", datetime.now().isoformat())
         existing["last_updated"] = datetime.now().isoformat()
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(existing, f, indent=2, ensure_ascii=False)
+        logging.info(f"MeetingMemory: Saved bot {bot_id} to {path}")
         return True
     except Exception as e:
         logging.error(f"MeetingMemory: Failed to save bot {bot_id}: {e}")

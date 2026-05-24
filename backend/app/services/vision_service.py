@@ -10,7 +10,8 @@ from groq import Groq
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-# Defaulting to the latest vision model available on Groq in this environment
+# llama-3.2-11b-vision-preview is DECOMMISSIONED by Groq (Error 400).
+# Current active Groq vision model as of 2025: meta-llama/llama-4-scout-17b-16e-instruct
 GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 def encode_image_base64(image_path: str) -> str:
@@ -113,7 +114,8 @@ Do not return any markdown wrapping or extra text. Output exactly and only the J
                         ]
                     }
                 ],
-                temperature=0.1
+                temperature=0.1,
+                max_tokens=2048
             )
             
             raw_content = response.choices[0].message.content

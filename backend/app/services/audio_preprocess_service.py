@@ -22,27 +22,22 @@ def _ensure_dirs():
 
 
 # ── ffmpeg availability check ─────────────────────────────────────────────────
-# Fallback path for Windows winget install
-WINGET_FFMPEG = r"C:\Users\Swapnil\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin\ffmpeg.exe"
-WINGET_FFPROBE = r"C:\Users\Swapnil\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin\ffprobe.exe"
 
 def get_ffmpeg_exe():
     if shutil.which("ffmpeg"):
         return "ffmpeg"
-    if os.path.exists(WINGET_FFMPEG):
-        return WINGET_FFMPEG
-    return "ffmpeg"
+    return None
 
 def get_ffprobe_exe():
     if shutil.which("ffprobe"):
         return "ffprobe"
-    if os.path.exists(WINGET_FFPROBE):
-        return WINGET_FFPROBE
-    return "ffprobe"
+    return None
 
 def check_ffmpeg() -> bool:
     try:
         exe = get_ffmpeg_exe()
+        if not exe:
+            return False
         result = subprocess.run(
             [exe, "-version"],
             capture_output=True, timeout=5
@@ -57,6 +52,8 @@ def _get_duration(file_path: str) -> float:
     """Returns duration of audio file in seconds using ffprobe."""
     try:
         exe = get_ffprobe_exe()
+        if not exe:
+            return 0.0
         result = subprocess.run(
             [
                 exe, "-v", "error",

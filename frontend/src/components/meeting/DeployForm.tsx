@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Bot, Link, User, Zap, FileText, Mic, Camera, ChevronDown, ChevronUp, AlertCircle, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Bot, Link, User, Zap, FileText, Mic, Camera, ChevronDown, ChevronUp, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -27,7 +28,7 @@ function InputField({ label, icon: Icon, name, placeholder, type = 'text', hint,
   return (
     <div>
       <label className="label">
-        <Icon className="w-3.5 h-3.5 inline mr-1.5 text-slate-400" />
+        <Icon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-400" />
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -43,7 +44,7 @@ function InputField({ label, icon: Icon, name, placeholder, type = 'text', hint,
           <AlertCircle className="w-3 h-3" /> {errors[name]}
         </div>
       )}
-      {hint && !errors[name] && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && !errors[name] && <p className="text-[11px] text-slate-400 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -106,36 +107,13 @@ export default function DeployForm({ onDeployed }: DeployFormProps) {
     }
   };
 
-  const InputField = ({
-    label, icon: Icon, name, placeholder, type = 'text', hint, required = false
-  }: {
-    label: string; icon: any; name: string; placeholder: string;
-    type?: string; hint?: string; required?: boolean;
-  }) => (
-    <div>
-      <label className="label">
-        <Icon className="w-3.5 h-3.5 inline mr-1.5 text-slate-400" />
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type={type}
-        value={(form as any)[name]}
-        onChange={e => set(name, e.target.value)}
-        placeholder={placeholder}
-        className={`input-field ${errors[name] ? 'border-red-400 focus:ring-red-400' : ''}`}
-      />
-      {errors[name] && (
-        <div className="flex items-center gap-1 mt-1 text-xs text-red-500">
-          <AlertCircle className="w-3 h-3" /> {errors[name]}
-        </div>
-      )}
-      {hint && !errors[name] && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
-    </div>
-  );
-
   return (
-    <div className="max-w-2xl mx-auto">
+    <motion.div
+      className="max-w-2xl mx-auto"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       <div className="mb-6">
         <div className="section-title">New Session</div>
         <h2 className="text-2xl font-bold text-slate-900">Deploy AI Meeting Agent</h2>
@@ -145,19 +123,19 @@ export default function DeployForm({ onDeployed }: DeployFormProps) {
       <form onSubmit={handleDeploy} className="space-y-5">
 
         {/* Basic Meeting Info */}
-        <div className="card space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
-              <Link className="w-3.5 h-3.5 text-indigo-600" />
+        <motion.div className="glass-card space-y-4" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100/80">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-sm">
+              <Link className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-slate-800 text-sm">Basic Meeting Info</span>
+            <span className="font-bold text-slate-800 text-sm">Meeting Information</span>
           </div>
 
-        <InputField label="Google Meet Link" icon={Link} name="meet_link" placeholder="https://meet.google.com/abc-defg-hij" required hint="Paste the full Google Meet URL here" value={form.meet_link} errors={errors} onChange={set} />
+          <InputField label="Google Meet Link" icon={Link} name="meet_link" placeholder="https://meet.google.com/abc-defg-hij" required hint="Paste the full Google Meet URL here" value={form.meet_link} errors={errors} onChange={set} />
           <InputField label="Meeting Title" icon={FileText} name="meeting_title" placeholder="e.g. Project Sprint Review" hint="Optional — helps organize meeting memory" value={form.meeting_title} errors={errors} onChange={set} />
           <div>
             <label className="label">
-              <FileText className="w-3.5 h-3.5 inline mr-1.5 text-slate-400" />
+              <FileText className="w-3.5 h-3.5 inline mr-1.5 text-indigo-400" />
               Meeting Purpose / Description
             </label>
             <textarea
@@ -168,33 +146,33 @@ export default function DeployForm({ onDeployed }: DeployFormProps) {
               className="input-field resize-none"
             />
           </div>
-        </div>
+        </motion.div>
 
         {/* Agent Identity */}
-        <div className="card space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <div className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-teal-600" />
+        <motion.div className="glass-card space-y-4" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100/80">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-sm">
+              <Bot className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-slate-800 text-sm">Agent Identity</span>
           </div>
 
           <InputField label="Your Name" icon={User} name="user_name" placeholder="e.g. Swapnil" required hint="The bot will alert you if your name is mentioned" value={form.user_name} errors={errors} onChange={set} />
           <InputField label="Bot Display Name" icon={Bot} name="bot_name" placeholder="MeetAgent" required hint="This name appears in the meeting chat" value={form.bot_name} errors={errors} onChange={set} />
-        </div>
+        </motion.div>
 
         {/* Instructions */}
-        <div className="card space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-amber-600" />
+        <motion.div className="glass-card space-y-4" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100/80">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+              <Zap className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-slate-800 text-sm">Auto-Reply Instructions</span>
           </div>
 
           <div>
             <label className="label">
-              <Zap className="w-3.5 h-3.5 inline mr-1.5 text-slate-400" />
+              <Zap className="w-3.5 h-3.5 inline mr-1.5 text-indigo-400" />
               Auto-Reply Rule
             </label>
             <textarea
@@ -204,23 +182,23 @@ export default function DeployForm({ onDeployed }: DeployFormProps) {
               rows={3}
               className="input-field resize-none"
             />
-            <p className="text-xs text-slate-400 mt-1">Teach the bot how to respond automatically in certain situations.</p>
+            <p className="text-[11px] text-slate-400 mt-1">Teach the bot how to respond automatically in certain situations.</p>
           </div>
 
           {/* Advanced */}
           <button
             type="button"
             onClick={() => setShowAdvanced(p => !p)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
           >
             {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             {showAdvanced ? 'Hide' : 'Show'} advanced context
           </button>
 
           {showAdvanced && (
-            <div className="animate-fade-in-up">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.3 }}>
               <label className="label">
-                <User className="w-3.5 h-3.5 inline mr-1.5 text-slate-400" />
+                <User className="w-3.5 h-3.5 inline mr-1.5 text-indigo-400" />
                 Your Context / Persona
               </label>
               <textarea
@@ -230,53 +208,59 @@ export default function DeployForm({ onDeployed }: DeployFormProps) {
                 rows={3}
                 className="input-field resize-none"
               />
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
-        {/* Capture Options (info only, always enabled) */}
-        <div className="card">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 mb-4">
-            <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Camera className="w-3.5 h-3.5 text-blue-600" />
+        {/* Capture Options */}
+        <motion.div className="glass-card" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100/80 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm">
+              <Camera className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-slate-800 text-sm">Capture Options</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: Mic, label: 'Audio Recording', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-              { icon: FileText, label: 'Transcription', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-              { icon: Camera, label: 'Screenshots', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-            ].map(({ icon: Icon, label, color }) => (
-              <div key={label} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border ${color}`}>
-                <Icon className="w-4 h-4" />
-                <span className="text-xs font-medium text-center">{label}</span>
-                <span className="text-xs opacity-75">Always On</span>
+              { icon: Mic, label: 'Audio Recording', gradient: 'from-blue-50 to-cyan-50', border: 'border-blue-200', text: 'text-blue-700' },
+              { icon: FileText, label: 'Transcription', gradient: 'from-emerald-50 to-teal-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+              { icon: Camera, label: 'Screenshots', gradient: 'from-purple-50 to-indigo-50', border: 'border-purple-200', text: 'text-purple-700' },
+            ].map(({ icon: Icon, label, gradient, border, text }) => (
+              <div key={label} className={`flex flex-col items-center gap-1.5 p-4 rounded-2xl border bg-gradient-to-br ${gradient} ${border} ${text}`}>
+                <Icon className="w-5 h-5" />
+                <span className="text-xs font-semibold text-center">{label}</span>
+                <span className="text-[10px] opacity-60 font-medium">Always On</span>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <motion.div
+            className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          >
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
-          </div>
+          </motion.div>
         )}
 
         {/* Deploy button */}
-        <button
+        <motion.button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed text-base active:scale-98"
+          className="w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl shadow-lg text-base disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300"
+          style={{ background: 'var(--gradient-primary)' }}
+          whileHover={{ scale: 1.01, boxShadow: '0 8px 32px rgba(79,70,229,0.4)' }}
+          whileTap={{ scale: 0.98 }}
         >
           {loading ? (
             <><Loader2 className="w-5 h-5 animate-spin" /> Launching Agent...</>
           ) : (
-            <><Bot className="w-5 h-5" /> Deploy AI Agent</>
+            <><Sparkles className="w-5 h-5" /> Deploy AI Agent</>
           )}
-        </button>
+        </motion.button>
       </form>
-    </div>
+    </motion.div>
   );
 }
